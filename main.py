@@ -1,3 +1,4 @@
+import os
 from tkinter import *
 from PatchMealWindow import PatchMealWindow
 
@@ -11,8 +12,10 @@ root.geometry('800x480')
 root.resizable(False, False)
 root.attributes('-topmost', 0)
 
+print(os.getenv('AUTH_TOKEN'))
+
 # Connect to API
-requests = RequestManager(url='https://api.pakerszama.pl/')
+requests = RequestManager(url='http://127.0.0.1:8000/')
 api = ApiBridge(request_manager=requests,
                 auth_token='')
 
@@ -59,7 +62,8 @@ def onselect(evt):
     index = int(w.curselection()[0])
     value = w.get(index)
 
-    popup = PatchMealWindow(root=root, meal=value)
+    # TODO: pass an actual ID
+    popup = PatchMealWindow(root=root, meal_title=value, meal_id=69)
     print('You selected item %d: "%s"' % (index, value))
 
 
