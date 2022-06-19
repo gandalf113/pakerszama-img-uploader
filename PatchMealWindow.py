@@ -1,7 +1,7 @@
 from multiprocessing.dummy import Value
 from tkinter import *
 from tkinter import filedialog
-from tkinter.filedialog import askopenfile
+from tkinter.messagebox import showinfo, showerror
 from PIL import Image, ImageTk
 from ApiBridge import ApiBridge
 
@@ -9,20 +9,33 @@ from RequestManager import RequestManager
 
 
 class PatchMealWindow:
-    def __init__(self, root, meal_title, meal_id) -> None:
+    def __init__(self, root, meal) -> None:
         global pop
         pop = Toplevel(root)
-        pop.title('Dodaj zdjęcie i filmik')
-        pop.geometry("400x350")
+        pop.title('Zmień przepis')
+        pop.iconbitmap('favicon.ico')
+        pop.geometry("400x380")
+        pop.attributes('-topmost', 1)
 
+        # Load the placeholder for preview
         self.load_preview_image('image.jpg')
 
-        self.popup(window=pop, meal_title=meal_title, meal_id=meal_id)
+        # At first, there is no image to be uploaded
+        self.image_path = None
+
+        # Get the title and meal id
+        self.meal_id, self.meal_title = self.title_decode(meal)
+
+        self.popup(window=pop)
 
         # Connect to API
         requests = RequestManager(url='http://127.0.0.1:8000/')
         self.api = ApiBridge(request_manager=requests,
                              auth_token='d32d5137658b0a1603bbff7ff0e3f72a9a8ba632')
+
+    def title_decode(self, encoded_title: str):
+        meal_id, title = encoded_title.split('!& - ')
+        return meal_id, title
 
     def load_preview_image(self, path: str):
         # Set the default preview image
@@ -34,37 +47,43 @@ class PatchMealWindow:
 
         return image
 
-    def popup(self, window, meal_title, meal_id):
+    def popup(self, window):
+        # ID section
+        meal_id_label = Label(window, text="ID")
+        meal_id = Label(window, text=self.meal_id, bg="light green")
+        meal_id_label.grid(row=0, column=0, pady=2, sticky='W')
+        meal_id.grid(row=0, column=1, sticky='W')
+
         # Title section
-        title_label = Label(window, text="Tytuł", bg="light green")
-        title = Label(window, text=meal_title, bg="light green")
-        title_label.grid(row=0, column=0)
-        title.grid(row=0, column=1)
+        title_label = Label(window, text="Tytuł")
+        title = Label(window, text=self.meal_title, bg="light green")
+        title_label.grid(row=1, column=0, pady=2, sticky='W')
+        title.grid(row=1, column=1, sticky='W')
 
         # Length days section
-        len_days_label = Label(window, text="Ilość dni", bg="light green")
+        len_days_label = Label(window, text="Ilość dni")
         len_days_field = Entry(window)
 
-        len_days_label.grid(row=1, column=0, pady=5)
-        len_days_field.grid(row=1, column=1, ipadx="100")
+        len_days_label.grid(row=2, column=0, pady=2, sticky='W')
+        len_days_field.grid(row=2, column=1, ipadx="100")
 
         # YouTube link section
-        yt_link_label = Label(window, text="Link", bg="light green")
+        yt_link_label = Label(window, text="Link")
         yt_link_field = Entry(window)
-        yt_link_label.grid(row=2, column=0, pady=5)
-        yt_link_field.grid(row=2, column=1, ipadx="100")
+        yt_link_label.grid(row=3, column=0, pady=5, sticky='W')
+        yt_link_field.grid(row=3, column=1, ipadx="100")
 
         # Image section
-        image_label = Label(window, text="Zdjęcie", bg="light green")
+        image_label = Label(window, text="Zdjęcie")
         image_button = Button(window, text="Otwórz",
                               command=lambda: self.select_image())
 
-        image_label.grid(row=3, column=0)
-        image_button.grid(row=3, column=1, ipadx="100")
+        image_label.grid(row=4, column=0)
+        image_button.grid(row=4, column=1, ipadx="100", sticky='W')
 
         # Image preview section
         self.img_preview = Label(window, image=self.preview_image)
-        self.img_preview.grid(row=4, column=1, pady=15)
+        self.img_preview.grid(row=5, column=1, pady=15)
 
         # Submit section
         submit = Button(
@@ -74,27 +93,29 @@ class PatchMealWindow:
             command=lambda:
             self.upload_to_meal(
                 yt_link=yt_link_field.get(),
-                image=self.image_path,
                 len_days=len_days_field.get()
             )
         )
         submit.grid(row=8, column=1)
 
-    def upload_to_meal(self, yt_link, image, len_days):
-        print("LINK:", yt_link)
-        print("IMAGE:", image)
-        print("LENGTH DAYS:", len_days)
-
+    def upload_to_meal(self, yt_link, len_days):
         try:
             len_days = int(len_days)
             self.api.upload_image(
-                meal_id=287,
+                meal_id=self.meal_id,
                 image_path=self.image_path
             )
+
+            # Inform of success
+            showinfo('Sukces', 'Zaktualizowano przepis')
+
+            # Close the window
+            pop.destroy()
+            pop.update()
         except ValueError as error:
-            print(error)
+            showerror('Porażka', 'Długość dni musi być typem int')
         except Exception as error:
-            print(error)
+            showerror('Porażka', error)
 
     def select_image(self):
         f_types = [('Jpg Files', '*.jpg')]

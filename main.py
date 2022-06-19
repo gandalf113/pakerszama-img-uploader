@@ -8,16 +8,15 @@ from ApiBridge import ApiBridge
 
 root = Tk()
 root.title('Pakerszama Image Uploader')
+root.iconbitmap('favicon.ico')
 root.geometry('800x480')
 root.resizable(False, False)
 root.attributes('-topmost', 0)
 
-print(os.getenv('AUTH_TOKEN'))
-
 # Connect to API
 requests = RequestManager(url='http://127.0.0.1:8000/')
 api = ApiBridge(request_manager=requests,
-                auth_token='')
+                auth_token='d32d5137658b0a1603bbff7ff0e3f72a9a8ba632')
 
 meals = api.get_meals()
 
@@ -33,15 +32,28 @@ for meal in meals:
         meals_without_img.append(meal)
 
 
-def populates_listboxes():
+def populates_listboxes() -> None:
     # Add meals with no image
     for meal in meals_without_img:
-        no_img_meals_listbox.insert(END, meal['title'])
+        no_img_meals_listbox.insert(END, title_encode(meal))
 
     # Add meals with image
     for meal in meals_with_img:
         print(meal)
-        img_meals_listbox.insert(END, meal['title'])
+        img_meals_listbox.insert(END, title_encode(meal))
+
+
+def title_encode(meal: dict) -> str:
+    # Encode the title to store both title and id
+    # It will look something like this:
+    # 1!&& Chicken and Rice
+
+    meal_id = meal['id']
+    title = meal['title']
+
+    # !&&   is the string separating id from title
+    return f"{meal_id}!& - {title}"
+
 
 
 # Create Listbox dla meals WITHOUT image
@@ -62,8 +74,8 @@ def onselect(evt):
     index = int(w.curselection()[0])
     value = w.get(index)
 
-    # TODO: pass an actual ID
-    popup = PatchMealWindow(root=root, meal_title=value, meal_id=69)
+    # Show new window
+    popup = PatchMealWindow(root=root, meal=value)
     print('You selected item %d: "%s"' % (index, value))
 
 
