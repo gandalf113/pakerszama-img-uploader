@@ -32,3 +32,13 @@ class ApiBridge:
         ).text
 
         return json.loads(data)
+
+    def patch_meal(self, meal_id: int, payload: dict):
+        data = self.requests.send_request(
+            method="PATCH",
+            path=f'/api/meal/meals/{meal_id}/',
+            headers=self.headers,
+            payload=payload
+        ).text
+
+        return json.loads(data)

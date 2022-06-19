@@ -9,13 +9,15 @@ from RequestManager import RequestManager
 
 
 class PatchMealWindow:
-    def __init__(self, root, meal) -> None:
+    def __init__(self, root: Tk, meal: str, refresh_meals) -> None:
         global pop
         pop = Toplevel(root)
         pop.title('Zmień przepis')
         pop.iconbitmap('favicon.ico')
         pop.geometry("400x380")
         pop.attributes('-topmost', 1)
+
+        self.refresh_meals = refresh_meals
 
         # Load the placeholder for preview
         self.load_preview_image('image.jpg')
@@ -26,7 +28,7 @@ class PatchMealWindow:
         # Get the title and meal id
         self.meal_id, self.meal_title = self.title_decode(meal)
 
-        self.popup(window=pop)
+        self.render(window=pop)
 
         # Connect to API
         requests = RequestManager(url='http://127.0.0.1:8000/')
@@ -47,7 +49,7 @@ class PatchMealWindow:
 
         return image
 
-    def popup(self, window):
+    def render(self, window):
         # ID section
         meal_id_label = Label(window, text="ID")
         meal_id = Label(window, text=self.meal_id, bg="light green")
@@ -78,7 +80,7 @@ class PatchMealWindow:
         image_button = Button(window, text="Otwórz",
                               command=lambda: self.select_image())
 
-        image_label.grid(row=4, column=0)
+        image_label.grid(row=4, column=0, sticky='W')
         image_button.grid(row=4, column=1, ipadx="100", sticky='W')
 
         # Image preview section
@@ -100,39 +102,68 @@ class PatchMealWindow:
 
     def upload_to_meal(self, yt_link, len_days):
         try:
-            len_days = int(len_days)
-            self.api.upload_image(
-                meal_id=self.meal_id,
-                image_path=self.image_path
-            )
+            # Upload the image
+            if self.image_path is not None:
+                self.api.upload_image(
+                    meal_id=self.meal_id,
+                    image_path=self.image_path
+                )
+
+            # Update the len_days and embed_id
+            payload = {
+                'embed_url': self.link_to_embed_id(yt_link)
+            }
+
+            if len_days:
+                payload['len_days'] = int(len_days)
+
+            # Finally, update the meal
+            self.api.patch_meal(self.meal_id, payload)
 
             # Inform of success
-            showinfo('Sukces', 'Zaktualizowano przepis')
+            showinfo('Sukces', 'Zaktualizowano przepis', parent=pop)
+
+            # Refresh the meals in main window
+            self.refresh_meals()
 
             # Close the window
             pop.destroy()
             pop.update()
         except ValueError as error:
-            showerror('Porażka', 'Długość dni musi być typem int')
+            print(error)
+            showerror('Porażka', 'Długość dni musi być typem int', parent=pop)
         except Exception as error:
-            showerror('Porażka', error)
+            print(error)
+            showerror('Porażka', error, parent=pop)
 
     def select_image(self):
         f_types = [('Jpg Files', '*.jpg')]
         # Open the file selection dialog
         filename = filedialog.askopenfilename(filetypes=f_types, parent=pop)
 
-        # Get the selected photo
-        # image = Image.open(filename)
-
+        # Load the preview image
         self.load_preview_image(filename)
-
-        # Resize the photo for preview
-        # self.preview_image = image.resize((320, 180), Image.ANTIALIAS)
-        # self.preview_image = ImageTk.PhotoImage(image=self.preview_image)
 
         # Set the image in preview display
         self.img_preview.config(image=self.preview_image)
 
         # Prepare the photo for uploading
         self.image_path = filename
+
+    def link_to_embed_id(self, link: str) -> str:
+        if 'www.youtube.com' in link:
+            embed_id = link.split('watch?v=')[1]
+        elif 'youtu.be' in link:
+            embed_id = link.split('youtu.be/')[1]
+        else:
+            raise Exception('Nieprawidłowy link')
+
+        if '?t=' in embed_id:
+            vid_id, timestamp = embed_id.split('?t=')
+
+            embed_id = vid_id + '?start=' + timestamp
+
+            if embed_id[-1] == 's':
+                embed_id = embed_id[:-1]
+
+        return embed_id
